@@ -123,28 +123,61 @@ function switchTab(tabName) {
 // প্রোফাইল লোড এবং ইউআই আপডেট করার ফাংশন
 async function fetchUserProfile() {
   if (!currentUserId) return;
-  const { data, error } = await _supabase
+
+  // ১. ইউজারের বেসিক প্রোফাইল ফেচ করা
+  const { data: profileData, error: profileError } = await _supabase
     .from("profiles")
     .select("*")
     .eq("id", currentUserId)
     .single();
 
-  if (error) return;
+  if (profileError) return;
 
-  if (data) {
+  if (profileData) {
     const profileNameEl = document.getElementById("user-profile-name");
     if (profileNameEl)
-      profileNameEl.innerText = `User: ${data.full_name || "Member"}`;
+      profileNameEl.innerText = `User: ${profileData.full_name || "Member"}`;
 
     const profFullName = document.getElementById("prof-full-name");
     const profUsername = document.getElementById("prof-username");
-    const profFund = document.getElementById("prof-fund");
     const profRole = document.getElementById("prof-role");
 
-    if (profFullName) profFullName.innerText = data.full_name || "N/A";
-    if (profUsername) profUsername.innerText = data.username || "N/A";
-    if (profFund) profFund.innerText = (data.fund || 0) + " BDT";
-    if (profRole) profRole.innerText = data.role || "member";
+    if (profFullName) profFullName.innerText = profileData.full_name || "N/A";
+    if (profUsername) profUsername.innerText = profileData.username || "N/A";
+    if (profRole) profRole.innerText = profileData.role || "member";
+  }
+
+  // ২. file_submissions টেবিল থেকে current_fund, good_count, bad_count, total_amount ফেচ এবং ক্যালকুলেট করা
+  const { data: submissions, error: subError } = await _supabase
+    .from("file_submissions")
+    .select("current_fund, good_count, bad_count, total_amount")
+    .eq("user_id", currentUserId.toString());
+
+  if (!subError && submissions) {
+    let totalCurrentFund = 0;
+    let lifetimeGood = 0;
+    let badAccount = 0;
+    let totalIncome = 0;
+
+    submissions.forEach((row) => {
+      totalCurrentFund += Number(row.current_fund || 0);
+      lifetimeGood += Number(row.good_count || 0);
+      badAccount += Number(row.bad_count || 0);
+      totalIncome += Number(row.total_amount || 0);
+    });
+
+    // UI-তে মানগুলো বসানো
+    const profFund = document.getElementById("prof-fund");
+    if (profFund) profFund.innerText = totalCurrentFund + " BDT";
+
+    const lifetimeGoodEl = document.getElementById("lifetime-good-count");
+    if (lifetimeGoodEl) lifetimeGoodEl.innerText = lifetimeGood;
+
+    const badAccountEl = document.getElementById("bad-account-count");
+    if (badAccountEl) badAccountEl.innerText = badAccount;
+
+    const totalIncomeEl = document.getElementById("total-income");
+    if (totalIncomeEl) totalIncomeEl.innerText = totalIncome + " BDT";
   }
 }
 
@@ -159,6 +192,26 @@ if (excelFileInput) {
     if (!file) return;
     uploadedFileName = file.name;
 
+    // Show loading view & hide others
+    document.getElementById("upload-default-view")?.classList.add("hidden");
+    document.getElementById("upload-success-view")?.classList.add("hidden");
+    const loadingView = document.getElementById("upload-loading-view");
+    loadingView?.classList.remove("hidden");
+
+    let progress = 0;
+    const progressBar = document.getElementById("upload-progress-bar");
+    const progressText = document.getElementById("upload-progress-text");
+
+    const interval = setInterval(() => {
+      progress += Math.floor(Math.random() * 15) + 10;
+      if (progress >= 100) {
+        progress = 100;
+        clearInterval(interval);
+      }
+      if (progressBar) progressBar.style.width = progress + "%";
+      if (progressText) progressText.innerText = progress + "%";
+    }, 40);
+
     const reader = new FileReader();
     reader.onload = function (e) {
       const data = new Uint8Array(e.target.result);
@@ -166,7 +219,6 @@ if (excelFileInput) {
       const firstSheetName = workbook.SheetNames[0];
       const worksheet = workbook.Sheets[firstSheetName];
 
-      // header: 1 ব্যবহার করার ফলে প্রথম রো বাদ না গিয়ে সব রো সঠিকভাবে কাউন্ট হবে
       const json = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
 
       extractedAccountsArray = json
@@ -182,12 +234,27 @@ if (excelFileInput) {
       const finalCount = extractedAccountsArray.length;
 
       const accountCountEl = document.getElementById("account-count");
-      if (accountCountEl) accountCountEl.innerText = finalCount;
+      if (accountCountEl) accountCountEl.innerText = finalCount + " টি";
+
+      // Display colorful success view after loading
+      setTimeout(() => {
+        loadingView?.classList.add("hidden");
+        const successView = document.getElementById("upload-success-view");
+        successView?.classList.remove("hidden");
+
+        const successFileNameEl = document.getElementById("success-file-name");
+        if (successFileNameEl) successFileNameEl.innerText = uploadedFileName;
+
+        const successTotalCountEl = document.getElementById(
+          "success-total-count",
+        );
+        if (successTotalCountEl)
+          successTotalCountEl.innerText = finalCount + " টি";
+      }, 500);
     };
     reader.readAsArrayBuffer(file);
   });
 }
-
 async function handleExcelSubmit() {
   if (extractedAccountsArray.length === 0) {
     alert("Please upload a valid Excel file first!");
@@ -366,34 +433,118 @@ async function fetchDashboardAndHistory() {
   // এখানে টেবিল আপডেট করার মূল কাজটি fetchFileHistory এর মাধ্যমেই হ্যান্ডেল করা হচ্ছে যাতে ডাবল রেন্ডারিং কনফ্লিক্ট না হয়।
 }
 
-// উইথড্র সাবমিট করার ফাংশন
-async function handleWithdrawSubmit() {
-  const goodCount = document.getElementById("withdraw-good-count")?.value || 0;
-  const income = document.getElementById("withdraw-income")?.value || 0;
-  const bkashNumber = document.getElementById("bkash-number")?.value;
+async function fetchWithdrawStats() {
+  if (!currentUserId) return;
 
-  if (!bkashNumber || bkashNumber.length < 11) {
-    alert("Please enter a valid bKash number!");
+  const { data: submissions, error } = await _supabase
+    .from("file_submissions")
+    .select("good_count, current_fund")
+    .eq("user_id", currentUserId.toString());
+
+  if (error) return;
+
+  let totalGood = 0;
+  let totalFund = 0;
+
+  if (submissions && submissions.length > 0) {
+    submissions.forEach((row) => {
+      totalGood += Number(row.good_count || 0);
+      totalFund += Number(row.current_fund || 0);
+    });
+  }
+
+  const goodCountEl = document.getElementById("withdraw-good-count");
+  const incomeEl = document.getElementById("withdraw-income");
+
+  if (goodCountEl) goodCountEl.value = totalGood;
+  if (incomeEl) incomeEl.value = totalFund + " BDT";
+}
+
+async function handleWithdrawSubmit() {
+  const withdrawAmountInput = document.getElementById("withdraw-amount-input");
+  const withdrawAmount = Number(withdrawAmountInput?.value || 0);
+  const bkashNumber = document.getElementById("bkash-number")?.value.trim();
+
+  if (withdrawAmount <= 0) {
+    alert("Please enter a valid withdraw amount!");
     return;
   }
 
-  const { error } = await _supabase.from("withdrawals").insert([
+  if (!bkashNumber || bkashNumber.length < 11) {
+    alert("Please enter a valid 11-digit bKash number!");
+    return;
+  }
+
+  // বর্তমান ইউজারের সব সাবমিশন ফেচ করা
+  const { data: submissions, error: fetchError } = await _supabase
+    .from("file_submissions")
+    .select("id, current_fund")
+    .eq("user_id", currentUserId.toString())
+    .order("created_at", { ascending: true });
+
+  if (fetchError || !submissions || submissions.length === 0) {
+    alert("No fund available to withdraw!");
+    return;
+  }
+
+  let totalAvailableFund = submissions.reduce(
+    (sum, row) => sum + Number(row.current_fund || 0),
+    0,
+  );
+
+  if (withdrawAmount > totalAvailableFund) {
+    alert(
+      "Insufficient balance! You cannot withdraw more than your available fund.",
+    );
+    return;
+  }
+
+  // উইথড্র ریکোয়েস্ট টেবিলে ইনসার্ট করা
+  const goodCountVal = Number(
+    document.getElementById("withdraw-good-count")?.value || 0,
+  );
+  const { error: insertError } = await _supabase.from("withdrawals").insert([
     {
       user_id: currentUserId.toString(),
-      good_count: goodCount,
-      income: income,
+      good_count: goodCountVal,
+      income: withdrawAmount,
       bkash_number: bkashNumber,
       status: "pending",
     },
   ]);
 
-  if (error) {
-    alert("Withdraw failed: " + error.message);
-  } else {
-    alert("Withdraw request submitted successfully!");
-    const bkashInput = document.getElementById("bkash-number");
-    if (bkashInput) bkashInput.value = "";
+  if (insertError) {
+    alert("Withdraw failed: " + insertError.message);
+    return;
   }
+
+  // ফাইল সাবমিশন টেবিল থেকে কাটাকাটি (deduct) করা (FIFO পদ্ধতিতে পুরোনো রেকর্ড থেকে কাটা)
+  let remainingToDeduct = withdrawAmount;
+  for (let sub of submissions) {
+    if (remainingToDeduct <= 0) break;
+
+    let currentFileFund = Number(sub.current_fund || 0);
+    if (currentFileFund > 0) {
+      let deductAmount = Math.min(currentFileFund, remainingToDeduct);
+      let newFund = currentFileFund - deductAmount;
+      remainingToDeduct -= deductAmount;
+
+      await _supabase
+        .from("file_submissions")
+        .update({ current_fund: newFund })
+        .eq("id", sub.id);
+    }
+  }
+
+  alert("Withdraw request submitted successfully!");
+
+  // ইনপুট ফিল্ড রিসেট এবং স্টেট আপডেট
+  if (withdrawAmountInput) withdrawAmountInput.value = "";
+  const bkashInput = document.getElementById("bkash-number");
+  if (bkashInput) bkashInput.value = "";
+
+  fetchWithdrawStats();
+  fetchUserProfile();
 }
 
 // ডেট পরিবর্তনের সময় ইনপুটে কাঙ্ক্ষিত ফরম্যাট দেখানোর ফাংশন
@@ -461,14 +612,19 @@ function updateDatePreview() {
 function setDefaultDate() {
   const dateInput = document.getElementById("submission-date");
   const displayInput = document.getElementById("display-date");
-  if (dateInput && displayInput) {
-    const today = new Date();
-    const yyyy = today.getFullYear();
-    const mm = String(today.getMonth() + 1).padStart(2, "0");
-    const dd = String(today.getDate()).padStart(2, "0");
 
+  const today = new Date();
+  const yyyy = today.getFullYear();
+  const mm = String(today.getMonth() + 1).padStart(2, "0");
+  const dd = String(today.getDate()).padStart(2, "0");
+
+  // submission-date ফিল্ড থাকলে মান সেট হবে
+  if (dateInput) {
     dateInput.value = `${yyyy}-${mm}-${dd}`;
+  }
 
+  // display-date ফিল্ড থাকলে সেখানেও ফরম্যাট করে মান বসবে
+  if (displayInput) {
     const day = today.getDate();
     const months = [
       "jan",
