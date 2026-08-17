@@ -1107,87 +1107,152 @@
                 </h3>
               </div>
             </div>
-            <div class="max-w-xl mx-auto px-4 py-6">
-              <div
-                class="bg-white p-6 sm:p-8 rounded-3xl shadow-xl border border-slate-100"
-              >
-                <h3
-                  class="text-xl font-bold mb-6 text-slate-800 border-b pb-3 flex items-center justify-between"
+            <!-- Withdraw Main Wrapper (Modern & Polished UI) -->
+            <div
+              class="max-w-7xl mx-auto px-4 sm:px-6 py-8 grid grid-cols-1 lg:grid-cols-12 gap-8 items-start"
+            >
+              <!-- Left Side: Withdraw Request Form Section (Span 5 columns on large screens) -->
+              <div class="lg:col-span-5 w-xl">
+                <div
+                  class="bg-white/90 backdrop-blur-xl p-7 sm:p-8 rounded-3xl shadow-[0_10px_30px_rgba(0,0,0,0.04)] border border-slate-100/80 transition-all duration-300 hover:shadow-[0_15px_35px_rgba(0,0,0,0.06)]"
                 >
-                  Withdraw Request
-                  <span
-                    class="text-xs bg-indigo-50 text-indigo-600 px-3 py-1 rounded-full border border-indigo-100"
-                    >Secure Payout</span
+                  <!-- Card Header -->
+                  <div
+                    class="flex items-center justify-between mb-6 pb-4 border-b border-slate-100"
                   >
-                </h3>
-
-                <div class="space-y-4">
-                  <!-- Total Good Accounts -->
-                  <div>
-                    <label
-                      class="block text-sm font-semibold text-slate-700 mb-2"
-                      >Total Good Accounts</label
+                    <div>
+                      <h3
+                        class="text-xl font-extrabold text-slate-800 tracking-tight"
+                      >
+                        Withdraw Request
+                      </h3>
+                      <p class="text-xs text-slate-400 mt-0.5">
+                        Transfer funds securely to your account
+                      </p>
+                    </div>
+                    <span
+                      class="inline-flex items-center gap-1.5 text-xs font-semibold bg-emerald-50 text-emerald-600 px-3 py-1.5 rounded-full border border-emerald-100/60 shadow-xs"
                     >
-                    <input
-                      type="text"
-                      id="withdraw-good-count"
-                      readonly
-                      class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-700 font-bold focus:outline-none"
-                      value="0"
-                    />
+                      <span
+                        class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"
+                      ></span>
+                      Secure Payout
+                    </span>
                   </div>
 
-                  <!-- Total Income (BDT) -->
-                  <div>
-                    <label
-                      class="block text-sm font-semibold text-slate-700 mb-2"
-                      >Total Income (BDT)</label
-                    >
-                    <input
-                      type="text"
-                      id="withdraw-income"
-                      readonly
-                      class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-emerald-700 font-bold focus:outline-none"
-                      value="0 BDT"
-                    />
-                  </div>
+                  <div class="space-y-5">
+                    <!-- Withdraw Amount Input -->
+                    <div>
+                      <label
+                        class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2"
+                        >Withdraw Amount (BDT) *</label
+                      >
+                      <div class="relative rounded-2xl shadow-xs">
+                        <input
+                          type="number"
+                          id="withdraw-amount-input"
+                          placeholder="0.00"
+                          class="w-full bg-slate-50/60 border border-slate-200/80 rounded-2xl px-4 py-3.5 pr-20 text-sm font-semibold text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 transition-all [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none [-moz-appearance:textfield]"
+                        />
+                        <div
+                          class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none"
+                        >
+                          <span
+                            class="bg-indigo-100 text-indigo-700 text-xs font-extrabold px-2.5 py-1.5 rounded-xl shadow-xs"
+                            >BDT</span
+                          >
+                        </div>
+                      </div>
+                    </div>
 
-                  <!-- Withdraw Amount Input (Partial or Full) -->
-                  <div>
-                    <label
-                      class="block text-sm font-semibold text-slate-700 mb-2"
-                      >Withdraw Amount (BDT) *</label
-                    >
-                    <input
-                      type="number"
-                      id="withdraw-amount-input"
-                      placeholder="Enter amount to withdraw"
-                      class="w-full bg-slate-50/50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-700 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all"
-                    />
-                  </div>
+                    <!-- bKash Number -->
+                    <div>
+                      <label
+                        class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2"
+                        >bKash Number *</label
+                      >
+                      <div class="relative rounded-2xl shadow-xs">
+                        <input
+                          type="text"
+                          id="bkash-number"
+                          placeholder="01XXXXXXXXX"
+                          maxlength="11"
+                          oninput="
+                            this.value = this.value.replace(/[^0-9]/g, '')
+                          "
+                          class="w-full bg-slate-50/60 border border-slate-200/80 rounded-2xl px-4 py-3.5 text-sm font-semibold text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 transition-all tracking-wider"
+                        />
+                      </div>
+                    </div>
 
-                  <!-- bKash Number -->
-                  <div>
-                    <label
-                      class="block text-sm font-semibold text-slate-700 mb-2"
-                      >bKash Number *</label
+                    <!-- Submit Button -->
+                    <button
+                      onclick="handleWithdrawSubmit()"
+                      class="w-full mt-3 bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 hover:from-emerald-700 hover:to-teal-800 text-white font-bold py-4 px-6 rounded-2xl shadow-lg shadow-emerald-600/25 active:scale-[0.99] transition-all duration-200 cursor-pointer flex items-center justify-center gap-2 group"
                     >
-                    <input
-                      type="text"
-                      id="bkash-number"
-                      placeholder="01XXXXXXXXX"
-                      maxlength="11"
-                      class="w-full bg-slate-50/50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-700 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all"
-                    />
+                      <span>Submit Withdraw Request</span>
+                      <svg
+                        class="w-4 h-4 group-hover:translate-x-1 transition-transform"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2.5"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          d="M14 5l7 7m0 0l-7 7m7-7H3"
+                        ></path>
+                      </svg>
+                    </button>
                   </div>
+                </div>
+              </div>
 
-                  <!-- Submit Button -->
-                  <button
-                    onclick="handleWithdrawSubmit()"
-                    class="w-full mt-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-semibold py-3.5 px-4 rounded-xl shadow-lg shadow-emerald-600/20 transition-all cursor-pointer"
+              <!-- Right Side: Withdraw History Section (Span 7 columns on large screens) -->
+              <div class="lg:col-span-7 w-full">
+                <div
+                  class="bg-white/90 backdrop-blur-xl p-7 sm:p-8 rounded-3xl shadow-[0_10px_30px_rgba(0,0,0,0.04)] border border-slate-100/80"
+                >
+                  <!-- History Header -->
+                  <div
+                    class="flex items-center justify-between mb-6 pb-4 border-b border-slate-100"
                   >
-                    Submit Withdraw Request
-                  </button>
+                    <div>
+                      <h3
+                        class="text-xl font-extrabold text-slate-800 tracking-tight"
+                      >
+                        Withdraw History
+                      </h3>
+                      <p class="text-xs text-slate-400 mt-0.5">
+                        Track your past payout requests and status
+                      </p>
+                    </div>
+                  </div>
+
+                  <!-- History Table Container -->
+                  <div
+                    class="overflow-x-auto rounded-2xl border border-slate-100/80"
+                  >
+                    <table class="w-full text-left border-collapse">
+                      <thead>
+                        <tr
+                          class="bg-slate-50/70 border-b border-slate-100 text-slate-500 text-xs font-bold uppercase tracking-wider"
+                        >
+                          <th class="py-3.5 px-4">Date & Time</th>
+                          <th class="py-3.5 px-4">Amount</th>
+                          <th class="py-3.5 px-4">bKash Number</th>
+                          <th class="py-3.5 px-4">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody
+                        id="withdraw-history-table-body"
+                        class="text-sm text-slate-700 divide-y divide-slate-100"
+                      >
+                        <!-- Data will be loaded dynamically via JavaScript -->
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1263,7 +1328,7 @@
                       >Current Balance:</span
                     >
                     <span
-                      id="prof-fund"
+                      id="prof-current-balance"
                       class="text-lg font-bold text-emerald-600"
                       >0 BDT</span
                     >

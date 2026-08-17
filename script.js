@@ -25,6 +25,7 @@ function showApp() {
   fetchUserProfile();
   fetchFileHistory();
   fetchDashboardAndHistory();
+  fetchWithdrawStats(); // এখানে যোগ করুন
   setDefaultDate();
 }
 
@@ -118,6 +119,11 @@ function switchTab(tabName) {
   if (pageTitle) {
     pageTitle.innerText = tabName.charAt(0).toUpperCase() + tabName.slice(1);
   }
+
+  // Withdraw ট্যাবে গেলে ডেটা ফেচ হবে
+  if (tabName === "withdraw") {
+    fetchWithdrawStats();
+  }
 }
 
 // প্রোফাইল লোড এবং ইউআই আপডেট করার ফাংশন
@@ -147,17 +153,17 @@ async function fetchUserProfile() {
     if (profRole) profRole.innerText = profileData.role || "member";
   }
 
-  // ২. file_submissions টেবিল থেকে current_fund, good_count, bad_count, total_amount ফেচ এবং ক্যালকুলেট করা
+  // ২. file_submissions টেবিল থেকে ডেটা ফেচ করা
   const { data: submissions, error: subError } = await _supabase
     .from("file_submissions")
     .select("current_fund, good_count, bad_count, total_amount")
     .eq("user_id", currentUserId.toString());
 
+  let totalIncome = 0;
   if (!subError && submissions) {
     let totalCurrentFund = 0;
     let lifetimeGood = 0;
     let badAccount = 0;
-    let totalIncome = 0;
 
     submissions.forEach((row) => {
       totalCurrentFund += Number(row.current_fund || 0);
@@ -166,7 +172,7 @@ async function fetchUserProfile() {
       totalIncome += Number(row.total_amount || 0);
     });
 
-    // UI-তে মানগুলো বসানো
+    // UI-তে অন্যান্য মানগুলো বসানো
     const profFund = document.getElementById("prof-fund");
     if (profFund) profFund.innerText = totalCurrentFund + " BDT";
 
@@ -178,6 +184,28 @@ async function fetchUserProfile() {
 
     const totalIncomeEl = document.getElementById("total-income");
     if (totalIncomeEl) totalIncomeEl.innerText = totalIncome + " BDT";
+  }
+
+  // ৩. উইথড্র টেবিল থেকে সফল উইথড্রগুলো ফেচ করা
+  const { data: withdraws, error: withdrawError } = await _supabase
+    .from("withdraws")
+    .select("amount, status")
+    .eq("user_id", currentUserId.toString());
+
+  let totalSuccessWithdraw = 0;
+  if (!withdrawError && withdraws) {
+    withdraws.forEach((row) => {
+      if (row.status === "success") {
+        totalSuccessWithdraw += Number(row.amount || 0);
+      }
+    });
+  }
+
+  // ৪. Current Balance হিসাব করা এবং UI তে বসানো
+  const currentBalance = totalIncome - totalSuccessWithdraw;
+  const balanceEl = document.getElementById("prof-current-balance"); // এখানে আপনার HTML-এর ID টি দিবেন
+  if (balanceEl) {
+    balanceEl.innerText = currentBalance + " BDT";
   }
 }
 
@@ -433,118 +461,144 @@ async function fetchDashboardAndHistory() {
   // এখানে টেবিল আপডেট করার মূল কাজটি fetchFileHistory এর মাধ্যমেই হ্যান্ডেল করা হচ্ছে যাতে ডাবল রেন্ডারিং কনফ্লিক্ট না হয়।
 }
 
+// Total Withdraw এবং Total Income হিসাব করে কার্ডে দেখানোর ফাংশন
+// Total Withdraw এবং Total Income হিসাব করে কার্ডে দেখানোর ফাংশন
 async function fetchWithdrawStats() {
   if (!currentUserId) return;
 
-  const { data: submissions, error } = await _supabase
-    .from("file_submissions")
-    .select("good_count, current_fund")
+  // ১. Total Income ফেচ করা (payment_requests টেবিল থেকে)
+  const { data: payments, error: paymentError } = await _supabase
+    .from("payment_requests")
+    .select("total_amount")
     .eq("user_id", currentUserId.toString());
 
-  if (error) return;
-
-  let totalGood = 0;
-  let totalFund = 0;
-
-  if (submissions && submissions.length > 0) {
-    submissions.forEach((row) => {
-      totalGood += Number(row.good_count || 0);
-      totalFund += Number(row.current_fund || 0);
+  let totalIncomeSum = 0;
+  if (!paymentError && payments) {
+    payments.forEach((row) => {
+      totalIncomeSum += Number(row.total_amount || 0);
     });
   }
+  const incomeEl = document.getElementById("summary-total-income");
+  if (incomeEl) {
+    incomeEl.innerText = totalIncomeSum + " BDT";
+  }
 
-  const goodCountEl = document.getElementById("withdraw-good-count");
-  const incomeEl = document.getElementById("withdraw-income");
+  // ২. Total Withdraw ফেচ করা (withdraws টেবিল থেকে - শুধুমাত্র 'success' গুলো)
+  const { data: withdraws, error: withdrawError } = await _supabase
+    .from("withdraws")
+    .select("amount, status") // এখানে status ফিল্ডটি সিলেক্ট করা হয়েছে
+    .eq("user_id", currentUserId.toString());
 
-  if (goodCountEl) goodCountEl.value = totalGood;
-  if (incomeEl) incomeEl.value = totalFund + " BDT";
+  let totalWithdrawSum = 0;
+  if (!withdrawError && withdraws) {
+    withdraws.forEach((row) => {
+      // শুধুমাত্র 'success' স্ট্যাটাস হলে তবেই যোগ হবে
+      if (row.status === "success") {
+        totalWithdrawSum += Number(row.amount || 0);
+      }
+    });
+  }
+  const withdrawEl = document.getElementById("summary-total-withdraw");
+  if (withdrawEl) {
+    withdrawEl.innerText = totalWithdrawSum + " BDT";
+  }
+
+  // ৩. Current Balance আপডেট (Income - Total Successful Withdraw)
+  const balanceEl = document.getElementById("summary-current-balance");
+  if (balanceEl) {
+    balanceEl.innerText = totalIncomeSum - totalWithdrawSum + " BDT";
+  }
+
+  fetchWithdrawHistory();
 }
-
 async function handleWithdrawSubmit() {
-  const withdrawAmountInput = document.getElementById("withdraw-amount-input");
-  const withdrawAmount = Number(withdrawAmountInput?.value || 0);
-  const bkashNumber = document.getElementById("bkash-number")?.value.trim();
-
-  if (withdrawAmount <= 0) {
-    alert("Please enter a valid withdraw amount!");
+  if (!currentUserId) {
+    alert("Please log in first!");
     return;
   }
 
-  if (!bkashNumber || bkashNumber.length < 11) {
-    alert("Please enter a valid 11-digit bKash number!");
+  const amountInput = document.getElementById("withdraw-amount-input");
+  const bkashInput = document.getElementById("bkash-number");
+
+  const amount = Number(amountInput.value);
+  const bkashNumber = bkashInput.value.trim();
+
+  if (!amount || amount <= 0) {
+    alert("Please enter a valid withdraw amount.");
     return;
   }
 
-  // বর্তমান ইউজারের সব সাবমিশন ফেচ করা
-  const { data: submissions, error: fetchError } = await _supabase
-    .from("file_submissions")
-    .select("id, current_fund")
-    .eq("user_id", currentUserId.toString())
-    .order("created_at", { ascending: true });
-
-  if (fetchError || !submissions || submissions.length === 0) {
-    alert("No fund available to withdraw!");
-    return;
-  }
-
-  let totalAvailableFund = submissions.reduce(
-    (sum, row) => sum + Number(row.current_fund || 0),
-    0,
-  );
-
-  if (withdrawAmount > totalAvailableFund) {
+  // bKash নাম্বার চেক (শুধুমাত্র সংখ্যা এবং নিশ্চিতভাবে ১১ ডিজিট হতে হবে)
+  const bkashRegex = /^[0-9]{11}$/;
+  if (!bkashRegex.test(bkashNumber)) {
     alert(
-      "Insufficient balance! You cannot withdraw more than your available fund.",
+      "দয়া করে সঠিক ১১ ডিজিটের bKash নাম্বার দিন (শুধুমাত্র সংখ্যা গ্রহণযোগ্য)।",
     );
     return;
   }
 
-  // উইথড্র ریکোয়েস্ট টেবিলে ইনসার্ট করা
-  const goodCountVal = Number(
-    document.getElementById("withdraw-good-count")?.value || 0,
-  );
-  const { error: insertError } = await _supabase.from("withdrawals").insert([
+  // ১. বর্তমান ইউজারের Total Income বের করা
+  const { data: payments, error: paymentError } = await _supabase
+    .from("payment_requests")
+    .select("total_amount")
+    .eq("user_id", currentUserId.toString());
+
+  let totalIncomeSum = 0;
+  if (!paymentError && payments) {
+    payments.forEach((row) => {
+      totalIncomeSum += Number(row.total_amount || 0);
+    });
+  }
+
+  // ২. বর্তমান ইউজারের Total Withdraw বের করা (শুধুমাত্র 'success' স্ট্যাটাস হিসাব হবে)
+  const { data: withdraws, error: withdrawError } = await _supabase
+    .from("withdraws")
+    .select("amount, status")
+    .eq("user_id", currentUserId.toString());
+
+  let totalWithdrawSum = 0;
+  if (!withdrawError && withdraws) {
+    withdraws.forEach((row) => {
+      if (row.status === "success") {
+        totalWithdrawSum += Number(row.amount || 0);
+      }
+    });
+  }
+
+  // ৩. Current Balance হিসাব করা (Total Income - Total Withdraw)
+  const currentBalance = totalIncomeSum - totalWithdrawSum;
+
+  // ৪. উইথড্র অ্যামাউন্ট কারেন্ট ব্যালেন্সের চেয়ে বেশি হলে চেক করা
+  if (amount > currentBalance) {
+    alert("টাকা কম আছে! আপনার পর্যাপ্ত ব্যালেন্স নেই।");
+    return;
+  }
+
+  // ৫. ব্যালেন্স ঠিক থাকলে Supabase-এর 'withdraws' টেবিলে ডেটা সেভ করা (status: pending)
+  const { error: insertError } = await _supabase.from("withdraws").insert([
     {
       user_id: currentUserId.toString(),
-      good_count: goodCountVal,
-      income: withdrawAmount,
+      amount: amount,
       bkash_number: bkashNumber,
       status: "pending",
     },
   ]);
 
   if (insertError) {
-    alert("Withdraw failed: " + insertError.message);
+    console.error("Error submitting withdraw request:", insertError);
+    alert("Failed to submit withdraw request. Please try again.");
     return;
-  }
-
-  // ফাইল সাবমিশন টেবিল থেকে কাটাকাটি (deduct) করা (FIFO পদ্ধতিতে পুরোনো রেকর্ড থেকে কাটা)
-  let remainingToDeduct = withdrawAmount;
-  for (let sub of submissions) {
-    if (remainingToDeduct <= 0) break;
-
-    let currentFileFund = Number(sub.current_fund || 0);
-    if (currentFileFund > 0) {
-      let deductAmount = Math.min(currentFileFund, remainingToDeduct);
-      let newFund = currentFileFund - deductAmount;
-      remainingToDeduct -= deductAmount;
-
-      await _supabase
-        .from("file_submissions")
-        .update({ current_fund: newFund })
-        .eq("id", sub.id);
-    }
   }
 
   alert("Withdraw request submitted successfully!");
 
-  // ইনপুট ফিল্ড রিসেট এবং স্টেট আপডেট
-  if (withdrawAmountInput) withdrawAmountInput.value = "";
-  const bkashInput = document.getElementById("bkash-number");
-  if (bkashInput) bkashInput.value = "";
+  // ইনপুট ফিল্ড খালি করা
+  amountInput.value = "";
+  bkashInput.value = "";
 
+  // কার্ডগুলোর ডেটা রিফ্রেশ/আপডেট করা
   fetchWithdrawStats();
-  fetchUserProfile();
+  fetchWithdrawHistory();
 }
 
 // ডেট পরিবর্তনের সময় ইনপুটে কাঙ্ক্ষিত ফরম্যাট দেখানোর ফাংশন
@@ -645,4 +699,117 @@ function setDefaultDate() {
 
     displayInput.value = `${day} ${month} ${year}`;
   }
+}
+
+// উইথড্র ফর্ম সাবমিট হ্যান্ডলার
+document
+  .getElementById("submit-withdraw-btn")
+  ?.addEventListener("click", async function (e) {
+    e.preventDefault();
+
+    if (!currentUserId) {
+      alert("Please log in first!");
+      return;
+    }
+
+    const amountInput = document.getElementById("withdraw-amount");
+    const bkashInput = document.getElementById("withdraw-bkash");
+
+    const amount = Number(amountInput.value);
+    const bkashNumber = bkashInput.value.trim();
+
+    if (!amount || amount <= 0) {
+      alert("Please enter a valid withdraw amount.");
+      return;
+    }
+
+    if (!bkashNumber) {
+      alert("Please enter your bKash number.");
+      return;
+    }
+
+    // Supabase-এর 'withdraws' টেবিলে ডেটা সেভ করা
+    const { data, error } = await _supabase.from("withdraws").insert([
+      {
+        user_id: currentUserId.toString(),
+        amount: amount,
+        bkash_number: bkashNumber,
+        status: "Pending",
+      },
+    ]);
+
+    if (error) {
+      console.error("Error submitting withdraw request:", error);
+      alert("Failed to submit withdraw request. Please try again.");
+      return;
+    }
+
+    alert("Withdraw request submitted successfully!");
+
+    // ইনপুট ফিল্ড খালি করুন
+    amountInput.value = "";
+    bkashInput.value = "";
+
+    // কার্ডের টোটাল উইথড্র আপডেট করুন
+    fetchWithdrawStats();
+  });
+
+// উইথড্র হিস্ট্রি ফেচ করার ফাংশন
+async function fetchWithdrawHistory() {
+  if (!currentUserId) return;
+
+  const tableBody = document.getElementById("withdraw-history-table-body");
+  if (!tableBody) return;
+
+  // Supabase থেকে current_user এর উইথড্র ডেটা আনা (নতুন ডেটা উপরে রাখার জন্য descending order)
+  const { data: withdraws, error } = await _supabase
+    .from("withdraws")
+    .select("created_at, amount, bkash_number, status")
+    .eq("user_id", currentUserId.toString())
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error("Error fetching withdraw history:", error);
+    return;
+  }
+
+  tableBody.innerHTML = "";
+
+  if (!withdraws || withdraws.length === 0) {
+    tableBody.innerHTML = `<tr><td colspan="4" class="text-center py-4 text-slate-400">No withdraw history found</td></tr>`;
+    return;
+  }
+
+  withdraws.forEach((row) => {
+    // ডেটা ফরম্যাট করার জন্য
+    const formattedDate = new Date(row.created_at).toLocaleString("en-GB", {
+      timeZone: "Asia/Dhaka",
+      hour12: true,
+    });
+
+    // স্ট্যাটাস অনুযায়ী ব্যাজ কালার
+    let statusClass = "bg-amber-50 text-amber-600 border-amber-200";
+    if (
+      row.status.toLowerCase() === "approved" ||
+      row.status.toLowerCase() === "success"
+    ) {
+      statusClass = "bg-emerald-50 text-emerald-600 border-emerald-200";
+    } else if (row.status.toLowerCase() === "rejected") {
+      statusClass = "bg-rose-50 text-rose-600 border-rose-200";
+    }
+
+    const tr = document.createElement("tr");
+    tr.className = "border-b hover:bg-slate-50/50 transition-all";
+    tr.innerHTML = `
+      <td class="py-3.5 px-4 text-slate-600 font-medium">${formattedDate}</td>
+      <td class="py-3.5 px-4 font-bold text-slate-800">${row.amount} BDT</td>
+      <td class="py-3.5 px-4 font-semibold text-slate-700 tracking-wider">${row.bkash_number}</td>
+      <td class="py-3.5 px-4">
+        <span class="px-3 py-1 rounded-full text-xs font-bold border ${statusClass}">
+          ${row.status.charAt(0).toUpperCase() + row.status.slice(1)}
+        </span>
+      </td>
+    `;
+    tableBody.appendChild(tr);
+  });
 }
