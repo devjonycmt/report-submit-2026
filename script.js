@@ -754,17 +754,22 @@ document
     fetchWithdrawStats();
   });
 
-// উইথড্র হিস্ট্রি ফেচ করার ফাংশন
+// bKash মডাল বন্ধ করার ফাংশন
+function closeBkashModal() {
+  const modal = document.getElementById("bkash-success-modal");
+  if (modal) modal.classList.add("hidden");
+}
+
+// উইথড্র হিস্ট্রি ফেচ এবং পেমেন্ট সাকসেস হলে bKash পপআপ দেখানোর ফাংশন
 async function fetchWithdrawHistory() {
   if (!currentUserId) return;
 
   const tableBody = document.getElementById("withdraw-history-table-body");
   if (!tableBody) return;
 
-  // Supabase থেকে current_user এর উইথড্র ডেটা আনা (নতুন ডেটা উপরে রাখার জন্য descending order)
   const { data: withdraws, error } = await _supabase
     .from("withdraws")
-    .select("created_at, amount, bkash_number, status")
+    .select("id, created_at, amount, bkash_number, status")
     .eq("user_id", currentUserId.toString())
     .order("created_at", { ascending: false });
 
@@ -780,26 +785,53 @@ async function fetchWithdrawHistory() {
     return;
   }
 
+  let latestSuccessChecked = false;
+
   withdraws.forEach((row) => {
-    // ডেটা ফরম্যাট করার জন্য
     const formattedDate = new Date(row.created_at).toLocaleString("en-GB", {
       timeZone: "Asia/Dhaka",
       hour12: true,
     });
 
+    const statusLower = row.status ? row.status.toLowerCase() : "pending";
+
     // স্ট্যাটাস অনুযায়ী ব্যাজ কালার
     let statusClass = "bg-amber-50 text-amber-600 border-amber-200";
-    if (
-      row.status.toLowerCase() === "approved" ||
-      row.status.toLowerCase() === "success"
-    ) {
+    if (statusLower === "approved" || statusLower === "success") {
       statusClass = "bg-emerald-50 text-emerald-600 border-emerald-200";
-    } else if (row.status.toLowerCase() === "rejected") {
+
+      // যদি স্ট্যাটাস success হয় এবং এই নির্দিষ্ট আইডির পপআপ আগে দেখানো না হয়ে থাকে
+      const notifiedKey = `bkash_notified_${row.id}`;
+      if (!latestSuccessChecked && !localStorage.getItem(notifiedKey)) {
+        latestSuccessChecked = true;
+        localStorage.setItem(notifiedKey, "true");
+
+        // calculations (5 BDT charge deduction)
+        const reqAmount = Number(row.amount || 0);
+        const receivedAmount = reqAmount - 5 > 0 ? reqAmount - 5 : 0;
+
+        // Populate Modal Data
+        document.getElementById("modal-req-amount").innerText =
+          reqAmount + " BDT";
+        document.getElementById("modal-received-amount").innerText =
+          receivedAmount + " BDT";
+        document.getElementById("modal-bkash-num").innerText =
+          row.bkash_number || "N/A";
+
+        // Show bKash Modal
+        setTimeout(() => {
+          document
+            .getElementById("bkash-success-modal")
+            ?.classList.remove("hidden");
+        }, 500);
+      }
+    } else if (statusLower === "rejected") {
       statusClass = "bg-rose-50 text-rose-600 border-rose-200";
     }
 
     const tr = document.createElement("tr");
-    tr.className = "border-b hover:bg-slate-50/50 transition-all";
+    tr.className =
+      "border-b hover:bg-slate-50/50 transition-all text-xs sm:text-sm";
     tr.innerHTML = `
       <td class="py-3.5 px-4 text-slate-600 font-medium">${formattedDate}</td>
       <td class="py-3.5 px-4 font-bold text-slate-800">${row.amount} BDT</td>
