@@ -845,3 +845,127 @@ async function fetchWithdrawHistory() {
     tableBody.appendChild(tr);
   });
 }
+
+function showApp() {
+  document.getElementById("login-container")?.classList.add("hidden");
+  document.getElementById("app-container")?.classList.remove("hidden");
+  fetchUserProfile();
+  fetchFileHistory();
+  fetchDashboardAndHistory();
+  fetchWithdrawStats();
+  setDefaultDate();
+
+  // নতুন: কাউন্টডাউন ফাংশন কল করা হলো
+  initSubmissionTimer();
+}
+
+// আধুনিক লাইভ কাউন্টডাউন এবং সাবমিশন টাইম কন্ট্রোলার
+function initSubmissionTimer() {
+  const timerContainer = document.getElementById("submission-timer-container");
+  const countdownDisplay = document.getElementById("countdown-display");
+  const timerTitle = document.getElementById("timer-title");
+  const timerSubtitle = document.getElementById("timer-subtitle");
+  const timerIconWrapper = document.getElementById("timer-icon-wrapper");
+  const timerMiniIcon = document.getElementById("timer-mini-icon");
+  const statusBadge = document.getElementById("status-badge");
+  const countdownLabel = document.getElementById("countdown-label");
+
+  const excelFile = document.getElementById("excel-file");
+  const excelSubmitBtn = document.getElementById("excelSubmitBtn");
+  const uploadDropZone = document.getElementById("upload-drop-zone");
+
+  function updateTimer() {
+    const now = new Date();
+    const currentHour = now.getHours();
+    const currentMinute = now.getMinutes();
+    const currentSecond = now.getSeconds();
+
+    const totalCurrentSeconds =
+      currentHour * 3600 + currentMinute * 60 + currentSecond;
+    const startTimeSeconds = 19 * 3600; // সন্ধ্যা ৭:০০ টা (19:00)
+    const endTimeSeconds = 21 * 3600; // রাত ৯:০০ টা (21:00)
+
+    // সময় সন্ধ্যা ৭:০০ টা থেকে রাত ৯:০০ টার মধ্যে হলে (Open State)
+    if (
+      totalCurrentSeconds >= startTimeSeconds &&
+      totalCurrentSeconds < endTimeSeconds
+    ) {
+      const diffSeconds = endTimeSeconds - totalCurrentSeconds;
+      const h = Math.floor(diffSeconds / 3600);
+      const m = Math.floor((diffSeconds % 3600) / 60);
+      const s = diffSeconds % 60;
+
+      if (countdownDisplay) {
+        countdownDisplay.innerText = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+        countdownDisplay.className =
+          "font-mono font-extrabold text-2xl md:text-3xl tracking-wider text-amber-400";
+      }
+      if (countdownLabel) countdownLabel.innerText = "সময় বাকি আছে";
+      if (timerTitle) timerTitle.innerText = "রিপোর্ট জমা দেওয়ার সময় চলছে";
+      if (timerSubtitle)
+        timerSubtitle.innerText =
+          "নির্ধারিত সময়ের মধ্যে আপনার সঠিক ফাইলটি আপলোড ও সাবমিট করুন।";
+      if (timerIconWrapper) timerIconWrapper.innerHTML = "⚡";
+      if (timerMiniIcon) timerMiniIcon.innerHTML = "⏳";
+
+      if (statusBadge) {
+        statusBadge.className =
+          "px-2.5 py-0.5 rounded-full text-xs font-semibold tracking-wide uppercase bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center gap-1.5";
+        statusBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> Open`;
+      }
+
+      if (timerContainer) {
+        timerContainer.className =
+          "relative overflow-hidden bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 text-white rounded-2xl p-6 shadow-xl border border-indigo-500/20 mb-6 transition-all duration-300";
+      }
+
+      // ফর্ম আনলক করা
+      if (excelFile) excelFile.disabled = false;
+      if (excelSubmitBtn) {
+        excelSubmitBtn.disabled = false;
+        excelSubmitBtn.classList.remove("opacity-50", "cursor-not-allowed");
+      }
+      if (uploadDropZone) {
+        uploadDropZone.classList.remove("opacity-50", "pointer-events-none");
+      }
+    } else {
+      // সময় শেষ হয়ে গেলে বা ৭টার আগে হলে (Closed / Locked State)
+      if (countdownDisplay) {
+        countdownDisplay.innerText = "CLOSED";
+        countdownDisplay.className =
+          "font-mono font-extrabold text-xl md:text-2xl tracking-wider text-rose-400";
+      }
+      if (countdownLabel) countdownLabel.innerText = "স্ট্যাটাস";
+      if (timerTitle) timerTitle.innerText = "আজকের সাবমিশন সময় শেষ";
+      if (timerSubtitle)
+        timerSubtitle.innerText =
+          "ফর্ম লক করা আছে। আগামী কাল সন্ধ্যা ৭:০০ টায় পুনরায় ওপেন হবে।";
+      if (timerIconWrapper) timerIconWrapper.innerHTML = "🔒";
+      if (timerMiniIcon) timerMiniIcon.innerHTML = "🚫";
+
+      if (statusBadge) {
+        statusBadge.className =
+          "px-2.5 py-0.5 rounded-full text-xs font-semibold tracking-wide uppercase bg-rose-500/20 text-rose-400 border border-rose-500/30 flex items-center gap-1.5";
+        statusBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-rose-400"></span> Closed`;
+      }
+
+      if (timerContainer) {
+        timerContainer.className =
+          "relative overflow-hidden bg-gradient-to-br from-slate-950 via-slate-900 to-rose-950/40 text-white rounded-2xl p-6 shadow-xl border border-rose-500/20 mb-6 transition-all duration-300";
+      }
+
+      // ফর্ম লক বা ডিজেবল করা
+      if (excelFile) excelFile.disabled = true;
+      if (excelSubmitBtn) {
+        excelSubmitBtn.disabled = true;
+        excelSubmitBtn.classList.add("opacity-50", "cursor-not-allowed");
+      }
+      if (uploadDropZone) {
+        uploadDropZone.classList.add("opacity-50", "pointer-events-none");
+      }
+    }
+  }
+
+  updateTimer();
+  setInterval(updateTimer, 1000);
+}
