@@ -211,6 +211,7 @@
               Dashboard
             </h1>
           </div>
+          <!-- ইউজার নেম -->
           <span
             id="user-profile-name"
             class="text-xs sm:text-sm font-semibold text-indigo-600 truncate max-w-[150px] sm:max-w-none"
@@ -1750,6 +1751,86 @@
         </div>
       </div>
     </div>
+
+    <!-- File Received Success Modal (bKash UI Theme) -->
+    <div
+      id="file-received-modal"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm hidden transition-all duration-300"
+    >
+      <div
+        class="bg-white rounded-3xl shadow-2xl border border-pink-100 w-full max-w-md overflow-hidden transform transition-all scale-100 p-6 m-4 relative"
+      >
+        <!-- ব্যাকগ্রাউন্ড গ্লো ইফেক্ট (বিকাশ পিংক) -->
+        <div
+          class="absolute -top-12 -right-12 w-32 h-32 bg-[#E2136E]/10 rounded-full blur-2xl pointer-events-none"
+        ></div>
+
+        <div class="text-center space-y-4">
+          <!-- বিকাশ থিমড আইকন -->
+          <div
+            class="w-16 h-16 bg-pink-50 text-[#E2136E] rounded-2xl mx-auto flex items-center justify-center text-3xl shadow-inner border border-pink-200"
+          >
+            ✅
+          </div>
+          <div>
+            <h3 class="text-xl font-extrabold text-slate-800 tracking-tight">
+              আপনার রিপোর্ট রিসিভ হয়েছে!
+            </h3>
+            <p class="text-xs text-slate-500 mt-1">
+              অ্যাডমিন আপনার সাবমিট করা ফাইলটি সফলভাবে যাচাই ও গ্রহণ করেছেন।
+            </p>
+          </div>
+
+          <!-- ফাইলের তথ্য কার্ড (বিকাশ স্টাইল রিসিপ্ট ভিউ) -->
+          <div
+            id="modal-file-details"
+            class="bg-slate-50/80 rounded-2xl p-4 border border-slate-100 text-left space-y-2.5 text-xs sm:text-sm"
+          >
+            <!-- জাভাস্ক্রিপ্ট দিয়ে ডাইনামিকালি তথ্য লোড হবে -->
+          </div>
+
+          <!-- বিকাশ পিংক অ্যাকশন বাটন -->
+          <button
+            onclick="closeReceivedModal()"
+            class="w-full py-3.5 px-4 bg-[#E2136E] hover:bg-[#c70f5e] text-white font-bold rounded-xl shadow-lg shadow-pink-600/20 transition-all duration-200"
+          >
+            বুঝে পেয়েছি (Got it)
+          </button>
+        </div>
+      </div>
+    </div>
+<div id="payment-ready-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+  <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-100 text-center relative animate-fadeIn">
+    
+    <!-- Custom Money Image Logo -->
+    <div class="mx-auto w-16 h-16 rounded-full overflow-hidden mb-3 shadow-md border-2 border-emerald-200 bg-emerald-50 flex items-center justify-center">
+      <img src="wmremove-transformed.webp" alt="Money Note" class="w-full h-full object-cover">
+    </div>
+
+    <!-- Header -->
+    <h3 class="text-xl font-extrabold text-slate-800">Payment Ready!</h3>
+    <p class="text-xs text-slate-500 mt-1 mb-4">Admin has successfully prepared the payment for your submitted report.</p>
+
+    <!-- Dynamic Details Container -->
+    <div id="modal-payment-details" class="text-left text-xs sm:text-sm space-y-1">
+      <!-- JavaScript will populate details here -->
+    </div>
+
+    <!-- Instruction Notice -->
+    <div class="bg-pink-50/80 border border-pink-100 rounded-xl p-3 text-center mt-4 shadow-inner">
+      <p class="text-xs sm:text-sm text-pink-900 font-semibold leading-relaxed">
+        পেমেন্ট পেতে অনুগ্রহ করে Withdraw পেজে গিয়ে আপনার bKash নম্বরটি প্রদান করুন।
+      </p>
+    </div>
+
+    <!-- Close Button -->
+    <button onclick="closePaymentReadyModal()" class="mt-5 w-full bg-gradient-to-r from-[#E2136E] to-pink-600 hover:from-pink-700 hover:to-[#c50f5f] text-white font-bold py-3 px-4 rounded-xl shadow-lg shadow-pink-500/25 transition-all text-sm">
+      Got It (বুঝে পেয়েছি)
+    </button>
+
+  </div>
+</div>
+    
     <!-- Mobile Sidebar Toggle Script -->
     <script>
       function toggleSidebar() {

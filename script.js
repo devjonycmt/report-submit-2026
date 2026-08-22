@@ -362,6 +362,8 @@ async function fetchFileHistory() {
 
   if (error) return;
 
+  checkLatestReceivedFile(data);
+
   const tbody =
     document.getElementById("file-history-body") ||
     document.getElementById("file-history-table");
@@ -370,8 +372,32 @@ async function fetchFileHistory() {
 
   if (data && data.length > 0) {
     data.forEach((row) => {
+      // 🔥 পেমেন্ট রেডি চেক করার কোডটি ঠিক এখানে বসিয়ে দিন:
+      const statusLower = row.status ? row.status.toLowerCase() : "";
+      if (statusLower === "payment_ready" || statusLower === "payment ready") {
+        const paymentNotifiedKey = `payment_ready_notified_${row.id}`;
+        if (!localStorage.getItem(paymentNotifiedKey)) {
+          localStorage.setItem(paymentNotifiedKey, "true");
+
+          setTimeout(() => {
+            showPaymentReadyModal(row);
+          }, 500);
+        }
+      }
+      // ----------------------------------------------------
+
       const formattedDateTime = formatDateTime(row.created_at);
       const displayCategory = row.category ? row.category.toUpperCase() : "N/A";
+
+      const statusVal = (row.status || row.account_stock || "pending")
+        .trim()
+        .toUpperCase();
+      let statusBadgeClass =
+        "bg-amber-50 text-amber-600 border border-amber-200";
+      if (statusVal === "RECEIVED" || statusVal === "SUCCESS") {
+        statusBadgeClass =
+          "bg-emerald-100 text-emerald-700 border border-emerald-200 shadow-sm";
+      }
 
       tbody.innerHTML += `
         <tr class="border-b border-slate-50 hover:bg-slate-50/50 text-xs">
@@ -383,8 +409,8 @@ async function fetchFileHistory() {
             <td class="py-3 px-4 font-extrabold text-rose-500">${row.bad_count || 0}</td>
             <td class="py-3 px-4 font-bold text-purple-600">${row.total_amount || 0} BDT</td>
             <td class="py-3 px-4">
-                <span class="px-2.5 py-1 rounded text-[10px] font-bold uppercase ${row.account_stock === "success" ? "bg-emerald-50 text-emerald-600" : "bg-amber-50 text-amber-600"}">
-                    ${row.account_stock || row.status || "pending"}
+                <span class="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase ${statusBadgeClass}">
+                    ${statusVal}
                 </span>
             </td>
         </tr>
@@ -392,7 +418,6 @@ async function fetchFileHistory() {
     });
   }
 }
-
 // ড্যাশবোর্ড এবং হিস্টোরি ডেটা আপডেট করার ফাংশন
 async function fetchDashboardAndHistory() {
   if (!currentUserId) return;
@@ -968,4 +993,130 @@ function initSubmissionTimer() {
 
   updateTimer();
   setInterval(updateTimer, 1000);
+}
+
+// লেটেস্ট ফাইল রিসিভড চেক এবং লোকালস্টোরেজ হ্যান্ডলার
+function checkLatestReceivedFile(historyData) {
+  if (!historyData || historyData.length === 0) return;
+
+  // তালিকার প্রথম (সবচেয়ে সাম্প্রতিক) ফাইলটি চেক করা হচ্ছে
+  const latestFile = historyData[0];
+  const status = (latestFile.status || "").trim().toUpperCase();
+
+  if (status === "RECEIVED") {
+    // ইউনিক কি (Date + File Name) তৈরি করা যাতে একই ফাইলের জন্য বারবার মডাল না আসে
+    const fileUniqueKey = `received_modal_shown_${latestFile.date}_${latestFile.fileName || latestFile.file_name}`;
+    const isShown = localStorage.getItem(fileUniqueKey);
+
+    if (!isShown) {
+      showReceivedModal(latestFile);
+      // লোকালস্টোরেজে সেভ করে রাখা হলো যাতে রিফ্রেশ করলেও আর মডাল না দেখায়
+      localStorage.setItem(fileUniqueKey, "true");
+    }
+  }
+}
+
+// মডালের ভেতরে ফাইলের তথ্য সেট করার ফাংশন (বিকাশ ইউআই থিম)
+function showReceivedModal(file) {
+  const modal = document.getElementById("file-received-modal");
+  const detailsContainer = document.getElementById("modal-file-details");
+
+  if (!modal || !detailsContainer) return;
+
+  const formattedDate = file.created_at
+    ? formatDateTime(file.created_at)
+    : file.date || "N/A";
+
+  detailsContainer.innerHTML = `
+    <div class="flex justify-between py-2 border-b border-slate-200/60">
+      <span class="text-slate-500 font-medium">তারিখ (Date):</span>
+      <span class="font-bold text-slate-700">${formattedDate}</span>
+    </div>
+    <div class="flex justify-between py-2 border-b border-slate-200/60">
+      <span class="text-slate-500 font-medium">ক্যাটাগরি (Category):</span>
+      <span class="font-bold text-[#E2136E]">${(file.category || "N/A").toUpperCase()}</span>
+    </div>
+    <div class="flex justify-between py-2 border-b border-slate-200/60">
+      <span class="text-slate-500 font-medium">ফাইল নাম (File Name):</span>
+      <span class="font-bold text-slate-700 truncate max-w-[180px]">${file.file_name || file.fileName || "N/A"}</span>
+    </div>
+    <div class="flex justify-between py-2 border-b border-slate-200/60">
+      <span class="text-slate-500 font-medium">মোট একাউন্ট:</span>
+      <span class="font-extrabold text-slate-800">${file.account_count || 0} টি</span>
+    </div>
+    <div class="bg-pink-50/80 border border-pink-100 rounded-xl p-3 text-center mt-3 shadow-inner">
+      <p class="text-xs sm:text-sm text-pink-900 font-semibold leading-relaxed">
+        আপনার ফাইল জমা হয়েছে এবং রিপোর্টের জন্য অপেক্ষা করুন।
+      </p>
+    </div>
+  `;
+
+  modal.classList.remove("hidden");
+}
+
+// মডাল বন্ধ করার ফাংশন
+function closeReceivedModal() {
+  const modal = document.getElementById("file-received-modal");
+  if (modal) {
+    modal.classList.add("hidden");
+  }
+}
+
+// পেমেন্ট রেডি মডাল ওপেন করার ফাংশন
+function showPaymentReadyModal(file) {
+  const modal = document.getElementById("payment-ready-modal");
+  const detailsContainer = document.getElementById("modal-payment-details");
+
+  if (!modal || !detailsContainer) return;
+
+  const formattedDate = file.created_at
+    ? formatDateTime(file.created_at)
+    : file.date || "N/A";
+
+  const goodVal =
+    file.good_count !== undefined ? file.good_count : file.good || 0;
+  const badVal = file.bad_count !== undefined ? file.bad_count : file.bad || 0;
+  const amountVal =
+    file.total_amount !== undefined ? file.total_amount : file.amount || 0;
+
+  detailsContainer.innerHTML = `
+    <div class="flex justify-between py-2 border-b border-slate-200/60">
+      <span class="text-slate-500 font-medium">Submission Date:</span>
+      <span class="font-bold text-slate-700">${formattedDate}</span>
+    </div>
+    <div class="flex justify-between py-2 border-b border-slate-200/60">
+      <span class="text-slate-500 font-medium">Category:</span>
+      <span class="font-bold text-[#E2136E]">${(file.category || "N/A").toUpperCase()}</span>
+    </div>
+    <div class="flex justify-between py-2 border-b border-slate-200/60">
+      <span class="text-slate-500 font-medium">File Name:</span>
+      <span class="font-bold text-slate-700 truncate max-w-[180px]">${file.file_name || file.fileName || "N/A"}</span>
+    </div>
+    <div class="grid grid-cols-3 gap-2 py-2 border-b border-slate-200/60 text-center">
+      <div class="bg-white p-1.5 rounded-lg border border-slate-200">
+        <span class="block text-[10px] text-slate-400 font-medium">Good</span>
+        <span class="font-bold text-emerald-600">${goodVal}</span>
+      </div>
+      <div class="bg-white p-1.5 rounded-lg border border-slate-200">
+        <span class="block text-[10px] text-slate-400 font-medium">Bad</span>
+        <span class="font-bold text-rose-600">${badVal}</span>
+      </div>
+      <div class="bg-white p-1.5 rounded-lg border border-slate-200">
+        <span class="block text-[10px] text-slate-400 font-medium">Total</span>
+        <span class="font-bold text-slate-700">${file.account_count || 0}</span>
+      </div>
+    </div>
+    <div class="flex justify-between py-2 items-center">
+      <span class="text-slate-500 font-medium">ইনকাম (Amount):</span>
+      <span class="font-extrabold text-emerald-600 text-base">${amountVal} BDT</span>
+    </div>
+  `;
+
+  modal.classList.remove("hidden");
+}
+
+// পেমেন্ট রেডি মডাল বন্ধ করার ফাংশন
+function closePaymentReadyModal() {
+  const modal = document.getElementById("payment-ready-modal");
+  if (modal) modal.classList.add("hidden");
 }
