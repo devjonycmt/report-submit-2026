@@ -908,7 +908,7 @@ function initSubmissionTimer() {
     const totalCurrentSeconds =
       currentHour * 3600 + currentMinute * 60 + currentSecond;
     const startTimeSeconds = 19 * 3600; // সন্ধ্যা ৭:০০ টা (19:00)
-    const endTimeSeconds = 22 * 3600; // রাত ৯:০০ টা (21:00)
+    const endTimeSeconds = 21 * 3600; // রাত ৯:০০ টা (21:00)
 
     // সময় সন্ধ্যা ৭:০০ টা থেকে রাত ৯:০০ টার মধ্যে হলে (Open State)
     if (
